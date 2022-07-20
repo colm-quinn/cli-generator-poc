@@ -1,0 +1,342 @@
+openapi: 3.0.1
+info:
+  contact:
+    name: contact name
+    url: https://www.example.com/support/get-started
+  description: |-
+    API Description text
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://opensource.org/licenses/MIT
+  title: Administration API
+  version: "0.1"
+servers:
+  - url: https://example.com
+tags:
+- description: Manages the Cloud Migration Service.
+  name: Cloud Migration Service
+paths:
+  /api/atlas/v1.0/groups/{groupId}/liveMigrations:
+    post:
+      description: Migrate one Cluster that Cloud or Ops Manager manages to MongoDB
+        Atlas.
+      operationId: createPushMigration
+      x-cli-name: liveMigrations-create
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+        - $ref: '#/components/parameters/envelope'
+        - $ref: '#/components/parameters/pretty'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiveMigrationRequestView'
+        description: One migration to be created.
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveMigrationResponseView'
+          description: Created
+        "400":
+          $ref: '#/components/responses/badRequest'
+      summary: Migrate One Local Managed Cluster to MongoDB Atlas
+      tags:
+      - Cloud Migration Service
+  /api/atlas/v1.0/groups/{groupId}/liveMigrations/validate:
+    post:
+      description: "Check whether the provided credentials, available disk space,\
+        \ MongoDB versions, and so on meet the requirements of the migration request.\
+        \ If the check passes, the migration can proceed."
+      operationId: validate
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+        - $ref: '#/components/parameters/envelope'
+        - $ref: '#/components/parameters/pretty'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiveMigrationRequestView'
+        description: One migration to be validated.
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationView'
+          description: OK
+        "400":
+          $ref: '#/components/responses/badRequest'
+      summary: Validate One Migration Request
+      tags:
+      - Cloud Migration Service
+components:
+  parameters:
+    envelope:
+      description: "Flag that indicates whether Application wraps the response in\
+            \ an `envelope` JSON object. Some API clients cannot access the HTTP response\
+            \ headers or status code. To remediate this, set envelope=true in the query.\
+            \ Endpoints that return a list of results use the results object as an envelope.\
+            \ Application adds the status parameter to the response body."
+      in: query
+      name: envelope
+      required: false
+      schema:
+        type: boolean
+        default: false
+        example: false
+    groupId:
+      description: Unique 24-hexadecimal digit string that identifies your project.
+      in: path
+      name: groupId
+      required: true
+      schema:
+        type: string
+        example: 32b6e34b3d91647abb20e7b8
+        maxLength: 24
+        minLength: 24
+        pattern: "^([a-f0-9]{24})$"
+    pretty:
+      description: Flag that indicates whether the response body should be in the
+        prettyprint format.
+      in: query
+      name: pretty
+      required: false
+      schema:
+        type: boolean
+        default: false
+        example: false
+  responses:
+    accepted:
+      description: Accepted
+    badRequest:
+      content:
+        application/json:
+          example:
+            detail: "(This is just an example, the exception may not be related to\
+                \ this endpoint) No provider AWS exists."
+            error: 400
+            errorCode: INVALID_PROVIDER
+            parameters:
+              - AWS
+            reason: Bad Request
+          schema:
+            $ref: '#/components/schemas/ApiError'
+      description: Bad Request
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        detail:
+          type: string
+        error:
+          type: integer
+          format: int32
+          description: HTTP status code returned with this error.
+          maximum: 599
+          minimum: 200
+          pattern: "^\\d{3}$"
+        errorCode:
+          type: string
+          description: Application error code returned with this error.
+          example: TOO_MANY_GROUP_NOTIFICATIONS
+        parameters:
+          type: array
+          items:
+            type: string
+            description: Parameter uses to give more information about the error.
+        reason:
+          type: string
+          description: Application error message returned with this error.
+          example: At most one group notification can be specified for an alert configuration.
+    Destination:
+      type: object
+      description: Document that describes the destination of the migration.
+      properties:
+        clusterName:
+          type: string
+          description: Label that identifies the destination cluster.
+        groupId:
+          type: string
+          description: Unique 24-hexadecimal digit string that identifies the destination
+            project.
+          example: 9b43a5b329223c3a1591a678
+          maxLength: 24
+          minLength: 24
+          pattern: "^([a-f0-9]{24})$"
+        vpcPeeringEnabled:
+          type: boolean
+          default: false
+          description: Flag that indicates if you want to use VPC peering between
+            the migration host and the target cluster.
+      required:
+        - clusterName
+        - groupId
+        - vpcPeeringEnabled
+    LiveMigrationRequestView:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique 24-hexadecimal digit string that identifies the migration
+            request.
+          example: 507f1f77bcf86cd799439011
+          maxLength: 24
+          minLength: 24
+          pattern: "^([a-f0-9]{24})$"
+          readOnly: true
+        destination:
+          $ref: '#/components/schemas/Destination'
+        dropEnabled:
+          type: boolean
+          description: Flag that indicates whether the migration process drops all
+            collections from the destination cluster before the migration starts.
+        migrationHosts:
+          type: array
+          description: List of migration hosts used for this migration.
+          example: vm001.example.com
+          items:
+            type: string
+        source:
+          $ref: '#/components/schemas/Source'
+      required:
+        - destination
+        - dropEnabled
+        - migrationHosts
+        - source
+    LiveMigrationResponseView:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique 24-hexadecimal digit string that identifies the migration
+            job.
+          example: 6296fb4c7c7aa997cf94e9a8
+          maxLength: 24
+          minLength: 24
+          pattern: "^([a-f0-9]{24})$"
+          readOnly: true
+        migrationHosts:
+          type: array
+          description: List of hosts running MongoDB Agents. These Agents can transfer
+            your MongoDB data between one source and one target cluster.
+          example: vm001.example.com
+          items:
+            type: string
+            description: One host running a MongoDB Agent. This Agent can transfer
+              your MongoDB data between one source and one target cluster.
+            pattern: "^([0-9]{1,3}\\.){3}[0-9]{1,3}|([0-9a-f]{1,4}\\:){7}([0-9a-f]{1,4})|(([a-z0-9]+\\\
+                .){1,10}[a-z]+)?$"
+          readOnly: true
+        readyForCutover:
+          type: boolean
+          description: Flag that indicates the migrated cluster can be cut over to
+            MongoDB Atlas.
+          readOnly: true
+        status:
+          type: string
+          description: |
+            Progress made in migrating one cluster to MongoDB Atlas.
+            
+            | Status   | Explanation |
+            |----------|-------------|
+            | NEW      | Someone scheduled a local cluster migration to MongoDB Atlas. |
+            | FAILED   | The cluster migration to MongoDB Atlas failed.                |
+            | COMPLETE | The cluster migration to MongoDB Atlas succeeded.             |
+            | EXPIRED  | MongoDB Atlas prepares to begin the cut over of the migrating cluster when source and target clusters have almost synchronized. If `"readyForCutover" : true`, this synchronization starts a timer of 120 hours. You can extend this timer. If the timer expires, MongoDB Atlas returns this status. |
+            | WORKING  | The cluster migration to MongoDB Atlas is performing one of the following tasks:<ul><li>Preparing connections to source and target clusters</li><li>Replicating data from source to target</li><li>Verifying MongoDB Atlas connection settings</li><li>Stopping replication after the cut over</li></ul> |
+          enum:
+            - NEW
+            - WORKING
+            - FAILED
+            - COMPLETE
+            - EXPIRED
+          readOnly: true
+    ObjectId:
+      type: object
+      description: |-
+        List that contains comma-separated key value pairs to map zones to geographic regions. These pairs map an ISO 3166-1a2 location code, with an ISO 3166-2 subdivision code when possible, to a unique 24-hexadecimal string that identifies the custom zone.
+        
+        This parameter returns an empty object if no custom zones exist.
+      readOnly: true
+    Source:
+      type: object
+      description: Document that describes the source of the migration.
+      properties:
+        caCertificatePath:
+          type: string
+          description: Path to the CA certificate that signed SSL certificates use
+            to authenticate to the source cluster.
+        clusterName:
+          type: string
+          description: Label that identifies the source cluster name.
+        groupId:
+          type: string
+          description: Unique 24-hexadecimal digit string that identifies the source
+            project.
+          example: 9b43a5b329223c3a1591a678
+          maxLength: 24
+          minLength: 24
+          pattern: "^([a-f0-9]{24})$"
+        managedAuthentication:
+          type: boolean
+          description: "Flag that indicates whether MongoDB Automation manages authentication\
+                \ to the source cluster. If true, do not provide values for username and\
+                \ password."
+        password:
+          type: string
+          description: Password that authenticates the username to the source cluster.
+          writeOnly: true
+        ssl:
+          type: boolean
+          description: Flag that indicates whether you have SSL enabled.
+        username:
+          type: string
+          description: Label that identifies the SCRAM-SHA user that connects to the
+            source cluster.
+          writeOnly: true
+      required:
+        - clusterName
+        - groupId
+        - managedAuthentication
+        - ssl
+    ValidationView:
+      type: object
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        errorMessage:
+          type: string
+          description: Reason why the validation job failed.
+          readOnly: true
+        groupId:
+          type: string
+          description: Unique 24-hexadecimal digit string that identifies the project
+            to validate.
+          example: ca4d8a18b96b317422974eec
+          maxLength: 24
+          minLength: 24
+          pattern: "^([a-f0-9]{24})$"
+          readOnly: true
+        sourceGroupId:
+          type: string
+          description: Unique 24-hexadecimal digit string that identifies the source
+            project.
+          example: 32b6e34b3d91647abb20e7b8
+          maxLength: 24
+          minLength: 24
+          pattern: "^([a-f0-9]{24})$"
+        status:
+          type: string
+          description: State of the specified validation job returned at the time
+            of the request.
+          enum:
+            - PENDING
+            - SUCCESS
+            - FAILED
+          readOnly: true
