@@ -18,16 +18,25 @@ package {{.Package}}
 import (
 	"context"
 
-	{{.SdkModels}}
-	"github.com/mongodb/mongodb-atlas-cli/internal/config"
-	"github.com/mongodb/mongodb-atlas-cli/internal/store"
-	"github.com/spf13/cobra"
+	"github.com/mongodb/mongodb-atlas-cli/internal/cli"
+  "github.com/mongodb/mongodb-atlas-cli/internal/config"
+  "github.com/mongodb/mongodb-atlas-cli/internal/flag"
+  "github.com/mongodb/mongodb-atlas-cli/internal/prompt"
+  "github.com/mongodb/mongodb-atlas-cli/internal/store"
+  "github.com/mongodb/mongodb-atlas-cli/internal/telemetry"
+  "github.com/mongodb/mongodb-atlas-cli/internal/usage"
+  "github.com/spf13/cobra"
+  "go.mongodb.org/atlas/mongodbatlas"
 )
 
-type CmdOpts struct {
-  // {{ range $operation := .Operations }}
-    // TODO: Struct members
-    store store.{{.Store}}
+// TODO: Handle output template
+
+type {{.Name}}Opts struct {
+	cli.OutputOpts
+	cli.InputOpts
+	cli.GlobalOpts
+  {{ range $parameter := .Parameters -}}
+  {{.Name}} {{.Type}}
   {{ end }}
 }
 
@@ -39,46 +48,75 @@ func (opts *CmdOpts) initStore(ctx context.Context) func() error {
 	}
 }
 
-var cmdTemplate = {{.CommandHeader}}
-{{.CommandTemplate}}
+func (opts *{{.Name}}Opts) New{{.Name}}Request() *mongodbatlas {
+  // TODO: Map command parameters to equivalent SDK parameters
+	// return &mongodbatlas.LiveMigration{
+  {{- range $parameter := .Parameters }}
+      // <SdkParameter>: {{.Name}},
+    {{- end }}
+ }
 
-func (opts *CmdOpts) Run() error {
+// TODO: Define output template for text output format
+var {{.Name}}Template = ``
+
+func (opts *{{.Name}}Opts) Validate() error {
+  {{- range $parameter := .Parameters -}}
+  {{if and .Required (ne .Type "boolean")}}
+    if opts.{{.Name}} == "" {
+      return "Missing required parameter: " + {{.Name}}
+    }
+    {{- end }}
+  {{- end }}
+	// TODO: Add any custom input validation required
+	return nil
+}
+
+func (opts *{{.Name}}Opts) Run() error {
 	if err := opts.Prompt(); err != nil {
 		return err
 	}
 
-	request := opts.NewRequest()
+	request := opts.New{{.Name}}Request()
 
-// TODO: Get correct sdk call from generated code
-//	r, err := opts.store.LiveMigrationCreate(opts.ConfigProjectID(), createRequest)
-//	if err != nil {
-//		return err
-//	}
+  // TODO: Add any missing sdk parameters to the call
 
 	return opts.Print(r)
 }
 
-func CmdBuilder() *cobra.Command {
-	opts := &CmdOpts{}
-	cmd := &cobra.Command{
+func {{.Name}}Builder() *cobra {
+	opts := &{{.Name}}Opts{}
+	cmd := &cobra{
 		Use:   {{.Name}},
 		Short: {{.Short}},
 		Long:  {{.Long}},
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra, args []string) error {
 			return opts.PreRunE(
 				opts.initStore(cmd.Context()),
-				opts.InitOutput(cmd.OutOrStdout(), cmdTemplate),
+				opts.InitOutput(cmd.OutOrStdout(), {{.Name}}),
 				opts.InitInput(cmd.InOrStdin()),
 				opts.Validate,
-				// TODO: Set required fields
 			)
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra, args []string) error {
 			return opts.Run()
 		},
 	}
-
-	opts.GenerateFlags(cmd)
+	{{ range $parameter := .Parameters }}
+    {{- if eq .Type "boolean" }}
+    cmd.Flags().BoolVar(&opts.{{.Name}}, "{{.Flag}}", {{.DefaultValue}}, "{{.Usage}}")
+    {{- else }}
+    {{- if .Short }}
+    cmd.Flags().StringVar(&opts.{{.Name}}, "{{.Flag}}", {{.Short}}, "{{.DefaultValue}}", "{{.Usage}}")
+    {{- else }}
+    cmd.Flags().StringVar(&opts.{{.Name}}, "{{.Flag}}", "{{.DefaultValue}}", "{{.Usage}}")
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{ range $parameter := .Parameters }}
+    {{- if .Required }}
+    _ = cmd.MarkFlagRequired(flag.{{.Name}})
+    {{- end }}
+  {{- end }}
 
 	return cmd
 }

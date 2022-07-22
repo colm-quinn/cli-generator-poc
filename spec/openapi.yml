@@ -52,6 +52,9 @@ paths:
         \ MongoDB versions, and so on meet the requirements of the migration request.\
         \ If the check passes, the migration can proceed."
       operationId: validate
+      x-cli-name: liveMigrations-validation-create
+      x-cli-short: liveMigrations-validation-create
+      x-cli-long: liveMigrations-validation-create
       parameters:
         - $ref: '#/components/parameters/groupId'
         - $ref: '#/components/parameters/envelope'
@@ -92,6 +95,7 @@ components:
         example: false
     groupId:
       description: Unique 24-hexadecimal digit string that identifies your project.
+      x-cli-description: Project ID to use. Overrides the settings in the configuration file or environment variable.
       in: path
       name: groupId
       required: true
@@ -196,6 +200,7 @@ components:
           type: boolean
           description: Flag that indicates whether the migration process drops all
             collections from the destination cluster before the migration starts.
+          x-cli-default: false
         migrationHosts:
           type: array
           description: List of migration hosts used for this migration.
@@ -279,6 +284,7 @@ components:
           type: string
           description: Unique 24-hexadecimal digit string that identifies the source
             project.
+          x-cli-description: Unique 24-hexadecimal digit string that identifies the source project.
           example: 9b43a5b329223c3a1591a678
           maxLength: 24
           minLength: 24
@@ -292,6 +298,8 @@ components:
           type: string
           description: Password that authenticates the username to the source cluster.
           writeOnly: true
+          x-cli-short: p
+          x-cli-default: false
         ssl:
           type: boolean
           description: Flag that indicates whether you have SSL enabled.
@@ -300,6 +308,7 @@ components:
           description: Label that identifies the SCRAM-SHA user that connects to the
             source cluster.
           writeOnly: true
+          x-cli-short: u
       required:
         - clusterName
         - groupId
